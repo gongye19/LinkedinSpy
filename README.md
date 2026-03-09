@@ -258,3 +258,12 @@ Naukri specific
 ├── vacancy_count
 └── work_from_home_type
 ```
+
+## Platform Mode (Backend + Frontend + Scheduler)
+
+This repository now also includes a platform layer:
+- `backend`: FastAPI + SQLite + retry/error tracking + LLM filtering
+- `frontend`: React/Vite jobs dashboard
+- `scheduler`: daily sync at 19:00 (Hong Kong timezone via scheduler container)
+
+See `README_PLATFORM.md` for setup and run details.

@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+requests
+pandas
+numpy
+beautifulsoup4
+regex
+markdownify
+tls-client
+python-dotenv
+httpx
+apscheduler
+pytest
