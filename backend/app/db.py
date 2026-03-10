@@ -37,7 +37,11 @@ def init_db(engine: Engine) -> None:
     from app.models import Base as ModelsBase
 
     ModelsBase.metadata.create_all(bind=engine)
-    _ensure_keyword_columns(engine)
+    # SQLite needs lightweight in-place schema evolution for existing local files.
+    # For Postgres on Railway, table creation is handled by metadata and these
+    # PRAGMA/ALTER statements are not applicable.
+    if engine.dialect.name == "sqlite":
+        _ensure_keyword_columns(engine)
 
 
 def _ensure_keyword_columns(engine: Engine) -> None:

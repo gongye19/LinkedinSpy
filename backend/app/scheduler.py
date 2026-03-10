@@ -10,7 +10,8 @@ from app.config import get_settings
 def main() -> None:
     settings = get_settings()
     minute, hour, day, month, day_of_week = settings.schedule_cron.split()
-    scheduler = BlockingScheduler(timezone="Asia/Hong_Kong")
+    timezone = "Asia/Hong_Kong"
+    scheduler = BlockingScheduler(timezone=timezone)
     scheduler.add_job(
         run_sync_once,
         trigger=CronTrigger(
@@ -19,11 +20,13 @@ def main() -> None:
             day=day,
             month=month,
             day_of_week=day_of_week,
+            timezone=timezone,
         ),
         id="daily-job-sync",
         replace_existing=True,
         coalesce=True,
         max_instances=1,
+        misfire_grace_time=24 * 60 * 60,
     )
     scheduler.start()
 
