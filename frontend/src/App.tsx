@@ -18,6 +18,7 @@ function App() {
   const [syncProgress, setSyncProgress] = useState<SyncRunItem | null>(null);
   const [lastSyncSummary, setLastSyncSummary] = useState<string | null>(null);
   const [keywordInputs, setKeywordInputs] = useState<string[]>(["", "", "", ""]);
+  const [llmRuleInputs, setLlmRuleInputs] = useState<string[]>(["", "", "", ""]);
   const [savingKeywords, setSavingKeywords] = useState(false);
   const [isKeywordEditing, setIsKeywordEditing] = useState(false);
 
@@ -27,13 +28,16 @@ function App() {
     setError(null);
 
     Promise.all([fetchJobs(view), fetchStats(), fetchKeywords()])
-      .then(([jobsResp, statsResp, keywords]) => {
+      .then(([jobsResp, statsResp, settings]) => {
         if (canceled) return;
         setJobs(jobsResp.items);
         setStats(statsResp);
-        const normalized = [...keywords];
-        while (normalized.length < 4) normalized.push("");
-        setKeywordInputs(normalized.slice(0, 4));
+        const normalizedKeywords = [...settings.keywords];
+        while (normalizedKeywords.length < 4) normalizedKeywords.push("");
+        setKeywordInputs(normalizedKeywords.slice(0, 4));
+        const normalizedRules = [...settings.llm_rules];
+        while (normalizedRules.length < 4) normalizedRules.push("");
+        setLlmRuleInputs(normalizedRules.slice(0, 4));
         setIsKeywordEditing(false);
       })
       .catch((err: Error) => {
@@ -97,10 +101,14 @@ function App() {
       setSavingKeywords(true);
       setError(null);
       const prepared = keywordInputs.map((item) => item.trim()).filter(Boolean).slice(0, 4);
-      const saved = await saveKeywords(prepared);
-      const normalized = [...saved];
-      while (normalized.length < 4) normalized.push("");
-      setKeywordInputs(normalized.slice(0, 4));
+      const preparedRules = llmRuleInputs.map((item) => item.trim()).filter(Boolean).slice(0, 4);
+      const saved = await saveKeywords(prepared, preparedRules);
+      const normalizedKeywords = [...saved.keywords];
+      while (normalizedKeywords.length < 4) normalizedKeywords.push("");
+      setKeywordInputs(normalizedKeywords.slice(0, 4));
+      const normalizedRules = [...saved.llm_rules];
+      while (normalizedRules.length < 4) normalizedRules.push("");
+      setLlmRuleInputs(normalizedRules.slice(0, 4));
       setIsKeywordEditing(false);
     } catch (err) {
       setError((err as Error).message);
@@ -119,6 +127,14 @@ function App() {
 
   function updateKeywordAt(index: number, value: string) {
     setKeywordInputs((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  }
+
+  function updateRuleAt(index: number, value: string) {
+    setLlmRuleInputs((prev) => {
       const next = [...prev];
       next[index] = value;
       return next;
@@ -187,6 +203,18 @@ function App() {
             />
           ))}
         </div>
+        <h3 className="sub-title">LLM 过滤规则（最多 4 条）</h3>
+        <div className="keyword-grid">
+          {llmRuleInputs.map((item, idx) => (
+            <input
+              key={`rule-${idx}`}
+              value={item}
+              onChange={(e) => updateRuleAt(idx, e.target.value)}
+              placeholder={`规则 ${idx + 1}`}
+              disabled={!isKeywordEditing}
+            />
+          ))}
+        </div>
         <div className="keyword-actions">
           <button
             className={isKeywordEditing ? "btn btn-primary" : "btn btn-outline"}
@@ -202,7 +230,7 @@ function App() {
             </button>
           ) : null}
         </div>
-        <p className="meta-note">保存后，手动爬取和每天 19:00 定时爬取都会默认使用这些关键词。</p>
+        <p className="meta-note">你可以修改“过滤范围规则”，但系统会固定要求模型返回标准 JSON 结构（该部分不开放配置）。</p>
         <div className="sync-cta-inline">
           <button className="sync-cta-btn" type="button" onClick={handleManualSync} disabled={syncing}>
             {syncing ? "正在爬取..." : "立即开始爬取"}

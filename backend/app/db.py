@@ -43,6 +43,7 @@ def init_db(engine: Engine) -> None:
     if engine.dialect.name == "sqlite":
         _ensure_keyword_columns(engine)
     elif engine.dialect.name == "postgresql":
+        _ensure_postgres_keyword_columns(engine)
         _ensure_postgres_sequences(engine)
 
 
@@ -55,7 +56,24 @@ def _ensure_keyword_columns(engine: Engine) -> None:
         column_names = {row[1] for row in info_rows}
         if "keyword_4" not in column_names:
             conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN keyword_4 VARCHAR(128)"))
+        if "llm_rule_1" not in column_names:
+            conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN llm_rule_1 TEXT"))
+        if "llm_rule_2" not in column_names:
+            conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN llm_rule_2 TEXT"))
+        if "llm_rule_3" not in column_names:
+            conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN llm_rule_3 TEXT"))
+        if "llm_rule_4" not in column_names:
+            conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN llm_rule_4 TEXT"))
         _ensure_sync_run_columns(conn)
+
+
+def _ensure_postgres_keyword_columns(engine: Engine) -> None:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN IF NOT EXISTS keyword_4 VARCHAR(128)"))
+        conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN IF NOT EXISTS llm_rule_1 TEXT"))
+        conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN IF NOT EXISTS llm_rule_2 TEXT"))
+        conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN IF NOT EXISTS llm_rule_3 TEXT"))
+        conn.execute(text("ALTER TABLE crawl_keyword_configs ADD COLUMN IF NOT EXISTS llm_rule_4 TEXT"))
 
 
 def _ensure_sync_run_columns(conn) -> None:

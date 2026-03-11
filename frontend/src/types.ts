@@ -43,3 +43,8 @@ export interface SyncRunItem {
   started_at: string;
   finished_at?: string | null;
 }
+
+export interface KeywordSettings {
+  keywords: string[];
+  llm_rules: string[];
+}

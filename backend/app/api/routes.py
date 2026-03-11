@@ -22,6 +22,7 @@ from app.services.pipeline import (
     run_sync_pipeline,
     start_sync_pipeline_async,
 )
+from app.services.llm import DEFAULT_LLM_RULES
 
 
 router = APIRouter()
@@ -252,7 +253,7 @@ def get_keyword_settings(session: Session = Depends(get_session)) -> KeywordSett
         select(CrawlKeywordConfig).order_by(CrawlKeywordConfig.id.desc()).limit(1)
     ).scalar_one_or_none()
     if config is None:
-        return KeywordSettingsResponse(keywords=DEFAULT_SEARCH_TERMS)
+        return KeywordSettingsResponse(keywords=DEFAULT_SEARCH_TERMS, llm_rules=DEFAULT_LLM_RULES)
 
     keywords = [
         config.keyword_1.strip() if config.keyword_1 else "",
@@ -260,10 +261,19 @@ def get_keyword_settings(session: Session = Depends(get_session)) -> KeywordSett
         config.keyword_3.strip() if config.keyword_3 else "",
         config.keyword_4.strip() if config.keyword_4 else "",
     ]
+    llm_rules = [
+        config.llm_rule_1.strip() if config.llm_rule_1 else "",
+        config.llm_rule_2.strip() if config.llm_rule_2 else "",
+        config.llm_rule_3.strip() if config.llm_rule_3 else "",
+        config.llm_rule_4.strip() if config.llm_rule_4 else "",
+    ]
     keywords = [item for item in keywords if item]
+    llm_rules = [item for item in llm_rules if item]
     if not keywords:
         keywords = DEFAULT_SEARCH_TERMS
-    return KeywordSettingsResponse(keywords=keywords)
+    if not llm_rules:
+        llm_rules = DEFAULT_LLM_RULES
+    return KeywordSettingsResponse(keywords=keywords, llm_rules=llm_rules)
 
 
 @router.put("/settings/keywords", response_model=KeywordSettingsResponse)
@@ -276,9 +286,16 @@ def update_keyword_settings(
         raise HTTPException(status_code=400, detail="keywords cannot be empty")
     if len(keywords) > 4:
         raise HTTPException(status_code=400, detail="at most 4 keywords are allowed")
+    llm_rules = [item.strip() for item in payload.llm_rules if item and item.strip()]
+    if len(llm_rules) > 4:
+        raise HTTPException(status_code=400, detail="at most 4 llm rules are allowed")
+    if not llm_rules:
+        llm_rules = DEFAULT_LLM_RULES.copy()
 
     while len(keywords) < 4:
         keywords.append("")
+    while len(llm_rules) < 4:
+        llm_rules.append("")
 
     config = session.execute(
         select(CrawlKeywordConfig).order_by(CrawlKeywordConfig.id.desc()).limit(1)
@@ -289,6 +306,10 @@ def update_keyword_settings(
             keyword_2=keywords[1] or None,
             keyword_3=keywords[2] or None,
             keyword_4=keywords[3] or None,
+            llm_rule_1=llm_rules[0] or None,
+            llm_rule_2=llm_rules[1] or None,
+            llm_rule_3=llm_rules[2] or None,
+            llm_rule_4=llm_rules[3] or None,
         )
         session.add(config)
     else:
@@ -296,7 +317,12 @@ def update_keyword_settings(
         config.keyword_2 = keywords[1] or None
         config.keyword_3 = keywords[2] or None
         config.keyword_4 = keywords[3] or None
+        config.llm_rule_1 = llm_rules[0] or None
+        config.llm_rule_2 = llm_rules[1] or None
+        config.llm_rule_3 = llm_rules[2] or None
+        config.llm_rule_4 = llm_rules[3] or None
 
     session.commit()
-    result = [item for item in keywords if item]
-    return KeywordSettingsResponse(keywords=result)
+    keyword_result = [item for item in keywords if item]
+    llm_rule_result = [item for item in llm_rules if item]
+    return KeywordSettingsResponse(keywords=keyword_result, llm_rules=llm_rule_result)

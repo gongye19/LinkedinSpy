@@ -1,4 +1,4 @@
-import type { JobsResponse, StatsResponse, SyncRunItem, ViewType } from "./types";
+import type { JobsResponse, KeywordSettings, StatsResponse, SyncRunItem, ViewType } from "./types";
 
 
 const API_BASE =
@@ -40,26 +40,24 @@ export async function triggerSync(): Promise<number> {
   return payload.sync_run_id;
 }
 
-export async function fetchKeywords(): Promise<string[]> {
+export async function fetchKeywords(): Promise<KeywordSettings> {
   const res = await fetch(`${API_BASE}/settings/keywords`);
   if (!res.ok) {
     throw new Error(`Failed to fetch keywords: ${res.status}`);
   }
-  const payload = (await res.json()) as { keywords: string[] };
-  return payload.keywords;
+  return (await res.json()) as KeywordSettings;
 }
 
-export async function saveKeywords(keywords: string[]): Promise<string[]> {
+export async function saveKeywords(keywords: string[], llmRules: string[]): Promise<KeywordSettings> {
   const res = await fetch(`${API_BASE}/settings/keywords`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ keywords }),
+    body: JSON.stringify({ keywords, llm_rules: llmRules }),
   });
   if (!res.ok) {
     throw new Error(`Failed to save keywords: ${res.status}`);
   }
-  const payload = (await res.json()) as { keywords: string[] };
-  return payload.keywords;
+  return (await res.json()) as KeywordSettings;
 }
 
 export async function fetchSyncRun(syncRunId: number): Promise<SyncRunItem> {

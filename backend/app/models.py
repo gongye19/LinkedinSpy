@@ -108,4 +108,8 @@ class CrawlKeywordConfig(Base):
     keyword_2: Mapped[str | None] = mapped_column(String(128))
     keyword_3: Mapped[str | None] = mapped_column(String(128))
     keyword_4: Mapped[str | None] = mapped_column(String(128))
+    llm_rule_1: Mapped[str | None] = mapped_column(Text)
+    llm_rule_2: Mapped[str | None] = mapped_column(Text)
+    llm_rule_3: Mapped[str | None] = mapped_column(Text)
+    llm_rule_4: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)

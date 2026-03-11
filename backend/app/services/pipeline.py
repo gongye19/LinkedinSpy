@@ -12,7 +12,7 @@ from app.db import SessionFactory
 from app.models import CrawlKeywordConfig, DismissedJob, FilteredJob, RawJob, SyncRun
 from app.repositories import RawJobRepository
 from app.services.filtering import JobFilteringService
-from app.services.llm import LLMClient
+from app.services.llm import DEFAULT_LLM_RULES, LLMClient
 from app.services.scraper import LinkedInScraperService
 from app.services.sync import SyncService
 
@@ -62,7 +62,7 @@ def run_sync_pipeline(
         jobs_evaluated = 0
         jobs_filtered = 0
 
-        llm_client = _build_llm_client(settings)
+        llm_client = _build_llm_client(settings=settings, session_factory=session_factory)
 
         with session_factory() as session:
             repository = RawJobRepository(session)
@@ -191,7 +191,7 @@ def _run_pipeline_job_fetcher(
     jobs_inserted = 0
     jobs_evaluated = 0
     jobs_filtered = 0
-    llm_client = _build_llm_client(settings)
+    llm_client = _build_llm_client(settings=settings, session_factory=session_factory)
 
     with session_factory() as session:
         repository = RawJobRepository(session)
@@ -260,6 +260,24 @@ def get_search_terms(session_factory: SessionFactory) -> list[str]:
         return keywords if keywords else DEFAULT_SEARCH_TERMS
 
 
+def get_llm_rules(session_factory: SessionFactory) -> list[str]:
+    with session_factory() as session:
+        config = session.execute(
+            select(CrawlKeywordConfig).order_by(CrawlKeywordConfig.id.desc()).limit(1)
+        ).scalar_one_or_none()
+        if config is None:
+            return DEFAULT_LLM_RULES
+
+        rules = [
+            config.llm_rule_1.strip() if config.llm_rule_1 else "",
+            config.llm_rule_2.strip() if config.llm_rule_2 else "",
+            config.llm_rule_3.strip() if config.llm_rule_3 else "",
+            config.llm_rule_4.strip() if config.llm_rule_4 else "",
+        ]
+        rules = [item for item in rules if item]
+        return rules if rules else DEFAULT_LLM_RULES
+
+
 def get_stats(session_factory: SessionFactory) -> dict[str, Any]:
     with session_factory() as session:
         raw_jobs = session.execute(select(func.count(RawJob.id))).scalar_one()
@@ -288,12 +306,14 @@ def get_stats(session_factory: SessionFactory) -> dict[str, Any]:
         }
 
 
-def _build_llm_client(settings: Settings) -> LLMClient | None:
+def _build_llm_client(*, settings: Settings, session_factory: SessionFactory) -> LLMClient | None:
     if settings.llm_base_url and settings.llm_api_key:
+        llm_rules = get_llm_rules(session_factory)
         return LLMClient(
             base_url=settings.llm_base_url,
             api_key=settings.llm_api_key,
             model_name=settings.model_name,
+            custom_rules=llm_rules,
         )
     return None
 

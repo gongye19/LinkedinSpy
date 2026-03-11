@@ -125,6 +125,12 @@ header p {
   color: #6b7280;
 }
 
+.sub-title {
+  margin: 12px 0 6px;
+  font-size: 14px;
+  color: #374151;
+}
+
 .keyword-actions {
   display: flex;
   gap: 8px;

@@ -55,7 +55,9 @@ class TriggerSyncResponse(BaseModel):
 
 class KeywordSettingsResponse(BaseModel):
     keywords: list[str]
+    llm_rules: list[str]
 
 
 class KeywordSettingsUpdateRequest(BaseModel):
     keywords: list[str]
+    llm_rules: list[str] = []
