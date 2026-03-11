@@ -50,6 +50,8 @@ def list_jobs(
                     DismissedJob.job_url == RawJob.job_url,
                     or_(
                         DismissedJob.date_posted == RawJob.date_posted,
+                        DismissedJob.date_posted.is_(None),
+                        RawJob.date_posted.is_(None),
                         and_(DismissedJob.date_posted.is_(None), RawJob.date_posted.is_(None)),
                     ),
                 ),

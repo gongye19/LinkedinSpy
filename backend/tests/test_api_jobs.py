@@ -162,3 +162,43 @@ def test_dismissed_job_reappears_only_when_new_date_posted(tmp_path):
 
     assert len(items) == 1
     assert items[0]["title"] == "AI Engineer Reposted"
+
+
+def test_dismissed_job_not_recommended_when_new_scrape_missing_date(tmp_path):
+    session_factory = create_session_factory(f"sqlite:///{tmp_path / 'jobs.db'}")
+    init_db(session_factory.engine)
+
+    dismissed_id = None
+    with session_factory() as session:
+        dismissed = RawJob(
+            site="linkedin",
+            job_url="https://www.linkedin.com/jobs/view/same-missing-date",
+            title="AI Engineer Original",
+            company="Acme",
+            date_posted=date(2026, 3, 8),
+        )
+        missing_date = RawJob(
+            site="linkedin",
+            job_url="https://www.linkedin.com/jobs/view/same-missing-date",
+            title="AI Engineer Missing Date",
+            company="Acme",
+            date_posted=None,
+        )
+        session.add_all([dismissed, missing_date])
+        session.commit()
+        session.refresh(dismissed)
+        session.refresh(missing_date)
+        dismissed_id = dismissed.id
+        session.add(FilteredJob(raw_job_id=dismissed.id, reason="pass"))
+        session.add(FilteredJob(raw_job_id=missing_date.id, reason="pass"))
+        session.commit()
+
+    app = create_app(session_factory=session_factory)
+    client = TestClient(app)
+    dismiss_response = client.post(f"/api/jobs/{dismissed_id}/dismiss")
+    assert dismiss_response.status_code == 200
+
+    response = client.get("/api/jobs?view=filtered")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 0
