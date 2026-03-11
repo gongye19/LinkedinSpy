@@ -1,7 +1,8 @@
 import type { JobsResponse, StatsResponse, SyncRunItem, ViewType } from "./types";
 
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ?? "https://backend-production-26a6b.up.railway.app/api";
 
 export async function fetchJobs(view: ViewType): Promise<JobsResponse> {
   const res = await fetch(`${API_BASE}/jobs?view=${view}`);
