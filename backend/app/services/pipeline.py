@@ -57,6 +57,7 @@ def run_sync_pipeline(
                 message=message,
             ),
         )
+        jobs = _filter_jobs_with_known_date(jobs)
         jobs_fetched = len(jobs)
         jobs_inserted = 0
         jobs_evaluated = 0
@@ -84,7 +85,7 @@ def run_sync_pipeline(
                         "location": job.get("location"),
                         "description": job.get("description"),
                         "search_term": job.get("search_term"),
-                        "date_posted": _parse_date(job.get("date_posted")),
+                        "date_posted": job["date_posted"],
                     }
                 )
 
@@ -187,6 +188,7 @@ def _run_pipeline_job_fetcher(
             message=message,
         ),
     )
+    jobs = _filter_jobs_with_known_date(jobs)
     jobs_fetched = len(jobs)
     jobs_inserted = 0
     jobs_evaluated = 0
@@ -212,7 +214,7 @@ def _run_pipeline_job_fetcher(
                     "location": job.get("location"),
                     "description": job.get("description"),
                     "search_term": job.get("search_term"),
-                    "date_posted": _parse_date(job.get("date_posted")),
+                    "date_posted": job["date_posted"],
                 }
             )
             if created:
@@ -316,6 +318,18 @@ def _build_llm_client(*, settings: Settings, session_factory: SessionFactory) ->
             custom_rules=llm_rules,
         )
     return None
+
+
+def _filter_jobs_with_known_date(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for job in jobs:
+        parsed_date = _parse_date(job.get("date_posted"))
+        if parsed_date is None:
+            continue
+        normalized = dict(job)
+        normalized["date_posted"] = parsed_date
+        result.append(normalized)
+    return result
 
 
 def _parse_date(value: Any) -> date | None:
