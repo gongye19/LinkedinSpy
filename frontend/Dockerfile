@@ -6,7 +6,8 @@ COPY package*.json /app/
 RUN npm install
 
 COPY . /app
+RUN npm run build
 
-EXPOSE 5173
+EXPOSE 8080
 
-CMD ["sh", "-c", "npm run dev -- --host 0.0.0.0 --port ${PORT:-5173}"]
+CMD ["sh", "-c", "npm run preview -- --host 0.0.0.0 --port ${PORT:-8080}"]

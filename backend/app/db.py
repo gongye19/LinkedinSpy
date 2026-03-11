@@ -42,6 +42,8 @@ def init_db(engine: Engine) -> None:
     # PRAGMA/ALTER statements are not applicable.
     if engine.dialect.name == "sqlite":
         _ensure_keyword_columns(engine)
+    elif engine.dialect.name == "postgresql":
+        _ensure_postgres_sequences(engine)
 
 
 def _ensure_keyword_columns(engine: Engine) -> None:
@@ -91,3 +93,27 @@ def _ensure_sync_run_columns(conn) -> None:
                 """
             )
         )
+
+
+def _ensure_postgres_sequences(engine: Engine) -> None:
+    table_id_columns = (
+        ("raw_jobs", "id"),
+        ("job_evaluations", "id"),
+        ("filtered_jobs", "id"),
+        ("sync_runs", "id"),
+        ("dismissed_jobs", "id"),
+        ("crawl_keyword_configs", "id"),
+    )
+    with engine.begin() as conn:
+        for table_name, id_column in table_id_columns:
+            conn.execute(
+                text(
+                    f"""
+                    SELECT setval(
+                        pg_get_serial_sequence('{table_name}', '{id_column}'),
+                        COALESCE((SELECT MAX({id_column}) FROM {table_name}), 0) + 1,
+                        false
+                    )
+                    """
+                )
+            )
