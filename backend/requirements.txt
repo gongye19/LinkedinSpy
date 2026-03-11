@@ -13,3 +13,4 @@ httpx
 apscheduler
 pytest
 psycopg[binary]
+python-jobspy
