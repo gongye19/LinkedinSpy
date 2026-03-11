@@ -14,3 +14,4 @@ apscheduler
 pytest
 psycopg[binary]
 python-jobspy
+psycopg2-binary
