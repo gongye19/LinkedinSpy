@@ -6,6 +6,9 @@ import random
 import time
 from typing import Any
 
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+
 from app.db import SessionFactory
 from app.models import SyncRun
 
@@ -27,6 +30,15 @@ class SyncService:
         self.sleep_func = sleep_func or time.sleep
 
     def create_run(self) -> int:
+        try:
+            return self._insert_run()
+        except IntegrityError:
+            # After SQLite->Postgres migration, ID sequence may lag existing rows.
+            # Realign and retry once to avoid 500 on manual sync trigger.
+            self._realign_sync_runs_sequence()
+            return self._insert_run()
+
+    def _insert_run(self) -> int:
         with self.session_factory() as session:
             sync_run = SyncRun(
                 status="running",
@@ -38,6 +50,21 @@ class SyncService:
             session.commit()
             session.refresh(sync_run)
             return sync_run.id
+
+    def _realign_sync_runs_sequence(self) -> None:
+        with self.session_factory() as session:
+            session.execute(
+                text(
+                    """
+                    SELECT setval(
+                        pg_get_serial_sequence('sync_runs', 'id'),
+                        COALESCE((SELECT MAX(id) FROM sync_runs), 0) + 1,
+                        false
+                    )
+                    """
+                )
+            )
+            session.commit()
 
     def run(self, *, job_fetcher: Callable[[int, Callable[..., None]], Any]) -> int:
         sync_run_id = self.create_run()
