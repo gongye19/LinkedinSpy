@@ -106,11 +106,33 @@ def _ensure_postgres_sequences(engine: Engine) -> None:
     )
     with engine.begin() as conn:
         for table_name, id_column in table_id_columns:
+            sequence_name = conn.execute(
+                text("SELECT pg_get_serial_sequence(:table_name, :column_name)"),
+                {"table_name": table_name, "column_name": id_column},
+            ).scalar_one_or_none()
+
+            if not sequence_name:
+                generated_sequence = f"{table_name}_{id_column}_seq"
+                conn.execute(text(f'CREATE SEQUENCE IF NOT EXISTS "{generated_sequence}"'))
+                conn.execute(
+                    text(
+                        f'ALTER TABLE "{table_name}" ALTER COLUMN "{id_column}" '
+                        f'SET DEFAULT nextval(\'"{generated_sequence}"\')'
+                    )
+                )
+                conn.execute(
+                    text(
+                        f'ALTER SEQUENCE "{generated_sequence}" '
+                        f'OWNED BY "{table_name}"."{id_column}"'
+                    )
+                )
+                sequence_name = generated_sequence
+
             conn.execute(
                 text(
                     f"""
                     SELECT setval(
-                        pg_get_serial_sequence('{table_name}', '{id_column}'),
+                        '{sequence_name}',
                         COALESCE((SELECT MAX({id_column}) FROM {table_name}), 0) + 1,
                         false
                     )
