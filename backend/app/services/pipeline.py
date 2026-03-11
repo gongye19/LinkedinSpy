@@ -301,6 +301,11 @@ def _build_llm_client(settings: Settings) -> LLMClient | None:
 def _parse_date(value: Any) -> date | None:
     if value is None:
         return None
+    text_value = str(value).strip().lower()
+    if text_value in {"nat", "nan", ""}:
+        return None
+    if value != value:  # noqa: PLR0124
+        return None
     if isinstance(value, date):
         return value
     try:

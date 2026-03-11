@@ -19,11 +19,12 @@ class RawJobRepository:
         return raw_job
 
     def create_or_get_with_flag(self, payload: Mapping[str, Any]) -> tuple[RawJob, bool]:
+        normalized_date_posted = _to_optional_date(payload.get("date_posted"))
         existing = self.session.execute(
             select(RawJob).where(
                 RawJob.site == payload["site"],
                 RawJob.job_url == payload["job_url"],
-                RawJob.date_posted == payload.get("date_posted"),
+                RawJob.date_posted == normalized_date_posted,
             )
         ).scalar_one_or_none()
         if existing is not None:
@@ -37,7 +38,7 @@ class RawJobRepository:
             location=_to_optional_string(payload.get("location")),
             description=_to_optional_string(payload.get("description")),
             search_term=_to_optional_string(payload.get("search_term")),
-            date_posted=_to_optional_date(payload.get("date_posted")),
+            date_posted=normalized_date_posted,
         )
         self.session.add(raw_job)
         self.session.flush()
@@ -51,6 +52,14 @@ def _to_optional_string(value: Any) -> str | None:
 
 
 def _to_optional_date(value: Any) -> date | None:
-    if value is None or isinstance(value, date):
+    if value is None:
+        return None
+    # Handles pandas NaT / numpy NaN-like values without importing pandas.
+    text_value = str(value).strip().lower()
+    if text_value in {"nat", "nan", ""}:
+        return None
+    if value != value:  # noqa: PLR0124
+        return None
+    if isinstance(value, date):
         return value
     raise TypeError(f"Unsupported date value: {value!r}")
