@@ -20,7 +20,9 @@ function App() {
   const [keywordInputs, setKeywordInputs] = useState<string[]>(["", "", "", ""]);
   const [llmRuleInputs, setLlmRuleInputs] = useState<string[]>(["", "", "", ""]);
   const [savingKeywords, setSavingKeywords] = useState(false);
+  const [savingRules, setSavingRules] = useState(false);
   const [isKeywordEditing, setIsKeywordEditing] = useState(false);
+  const [isRuleEditing, setIsRuleEditing] = useState(false);
 
   useEffect(() => {
     let canceled = false;
@@ -39,6 +41,7 @@ function App() {
         while (normalizedRules.length < 4) normalizedRules.push("");
         setLlmRuleInputs(normalizedRules.slice(0, 4));
         setIsKeywordEditing(false);
+        setIsRuleEditing(false);
       })
       .catch((err: Error) => {
         if (canceled) return;
@@ -106,14 +109,29 @@ function App() {
       const normalizedKeywords = [...saved.keywords];
       while (normalizedKeywords.length < 4) normalizedKeywords.push("");
       setKeywordInputs(normalizedKeywords.slice(0, 4));
-      const normalizedRules = [...saved.llm_rules];
-      while (normalizedRules.length < 4) normalizedRules.push("");
-      setLlmRuleInputs(normalizedRules.slice(0, 4));
       setIsKeywordEditing(false);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setSavingKeywords(false);
+    }
+  }
+
+  async function handleSaveRules() {
+    try {
+      setSavingRules(true);
+      setError(null);
+      const preparedKeywords = keywordInputs.map((item) => item.trim()).filter(Boolean).slice(0, 4);
+      const preparedRules = llmRuleInputs.map((item) => item.trim()).filter(Boolean).slice(0, 4);
+      const saved = await saveKeywords(preparedKeywords, preparedRules);
+      const normalizedRules = [...saved.llm_rules];
+      while (normalizedRules.length < 4) normalizedRules.push("");
+      setLlmRuleInputs(normalizedRules.slice(0, 4));
+      setIsRuleEditing(false);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSavingRules(false);
     }
   }
 
@@ -123,6 +141,14 @@ function App() {
       return;
     }
     setIsKeywordEditing(true);
+  }
+
+  function handleRuleAction() {
+    if (isRuleEditing) {
+      void handleSaveRules();
+      return;
+    }
+    setIsRuleEditing(true);
   }
 
   function updateKeywordAt(index: number, value: string) {
@@ -159,7 +185,7 @@ function App() {
           setStats(statsResp);
           if (run.status === "success") {
             setLastSyncSummary(
-              `本轮已结束：抓取 ${run.jobs_fetched} 条，新增 ${run.jobs_inserted} 条，已刷新列表`,
+              `本轮已结束：抓取 ${run.jobs_fetched} 条，新增 ${run.jobs_inserted} 条，LLM 通过 ${run.jobs_filtered} 条，已刷新列表`,
             );
           } else {
             setLastSyncSummary(`本轮失败：${run.error_message ?? "未知错误"}`);
@@ -203,18 +229,6 @@ function App() {
             />
           ))}
         </div>
-        <h3 className="sub-title">LLM 过滤规则（最多 4 条）</h3>
-        <div className="keyword-grid">
-          {llmRuleInputs.map((item, idx) => (
-            <input
-              key={`rule-${idx}`}
-              value={item}
-              onChange={(e) => updateRuleAt(idx, e.target.value)}
-              placeholder={`规则 ${idx + 1}`}
-              disabled={!isKeywordEditing}
-            />
-          ))}
-        </div>
         <div className="keyword-actions">
           <button
             className={isKeywordEditing ? "btn btn-primary" : "btn btn-outline"}
@@ -230,7 +244,33 @@ function App() {
             </button>
           ) : null}
         </div>
-        <p className="meta-note">你可以修改“过滤范围规则”，但系统会固定要求模型返回标准 JSON 结构（该部分不开放配置）。</p>
+        <h3 className="sub-title">LLM 过滤规则（最多 4 条）</h3>
+        <div className="keyword-grid">
+          {llmRuleInputs.map((item, idx) => (
+            <input
+              key={`rule-${idx}`}
+              value={item}
+              onChange={(e) => updateRuleAt(idx, e.target.value)}
+              placeholder={`规则 ${idx + 1}`}
+              disabled={!isRuleEditing}
+            />
+          ))}
+        </div>
+        <div className="keyword-actions">
+          <button
+            className={isRuleEditing ? "btn btn-primary" : "btn btn-outline"}
+            type="button"
+            onClick={handleRuleAction}
+            disabled={savingRules}
+          >
+            {savingRules ? "保存中..." : isRuleEditing ? "保存规则" : "编辑规则"}
+          </button>
+          {isRuleEditing ? (
+            <button className="btn btn-ghost" type="button" onClick={() => setIsRuleEditing(false)} disabled={savingRules}>
+              取消编辑
+            </button>
+          ) : null}
+        </div>
         <div className="sync-cta-inline">
           <button className="sync-cta-btn" type="button" onClick={handleManualSync} disabled={syncing}>
             {syncing ? "正在爬取..." : "立即开始爬取"}
